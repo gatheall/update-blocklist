@@ -1,0 +1,26 @@
+# This file holds a static list of host / network addresses to be blocked 
+# by the firewall via update-blocklist. 
+#
+# Blank lines and comment lines are ignored; others should have one or
+# more whitespace-delimited fields as follows:
+#
+#   - a source specification (eg, an IP address or network 
+#     address range in CIDR format) as the first field. NB:
+#     this is required.
+#   - an optional jump target (eg, DROP, REJECT, etc) as the
+#     second field. NB: if no jump target is specified, a 
+#     default one will be used.
+#   - an optional string to be appended as-is to the 
+#     iptables command.
+# 
+# See the iptables man page for more information on these fields.
+#
+# updated: 01-Oct-2003, George A. Theall
+
+
+# Responsible for repeated messanger popup attempts (tcp ports 135 
+# and 1026; source port always 666). Host resolves to 
+# dialup-64.156.39.12.Dial1.Denver1.Level3.net.
+#
+# 01-Oct-2003, George A. Theall
+64.156.39.12/32

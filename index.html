@@ -1,0 +1,237 @@
+<HTML>
+<HEAD>
+<TITLE>update-blocklist</TITLE>
+<LINK REV="made" HREF="mailto:theall@tifaware.com">
+<LINK REL="shortcut icon" HREF="http://www.tifaware.com/favicon.ico">
+</HEAD>
+
+<!--#include virtual="/header.html"-->
+<!--#if expr="$weblint" -->
+<BODY BGCOLOR="#FFFFFF">
+<!--#endif -->
+
+
+<H4 ALIGN="center">
+   <A HREF="/">TifaWARE</A> |
+   <A HREF="../">Perl Programs</A> |
+   update-blocklist
+</H4>
+                                                                                
+                                                                                
+<HR>
+<H2>update-blocklist</H2>
+
+<H3>Introduction</H3>
+
+<P>This script updates rules used by an iptables-based firewall to block
+inbound traffic.  You can use it to filter incoming traffic based on the
+<A HREF="http://www.dshield.org/block_list_info.php">dynamic list</A> of
+sources maintained by <A HREF="http://www.dshield.org/">DShield.org</A>
+as well as a static list maintained locally.  The dynamic list, by
+identifying networks responsible for the highest number of attacks
+reported to DShield.org, helps you stay up-to-date with current threats
+while the static list allows you to tailor rules to individual
+machines.</P>
+
+<P>Each time you run it, <B>update-blocklist</B> empties and then
+repopulates the firewall blocklist (a special user-defined chain through
+which inbound traffic passes).  If the dynamic list is retrieved and
+verified successfully, a copy will be saved for review or re-use.  It
+will be re-used in the event the option <CODE>--no-gets</CODE> is given
+or the current blocklist can not be retrieved or verified.</P>
+
+<P><B>update-blocklist</B> is written in Perl.  It should work on any
+Linux system with Perl 5 and iptables.  In addition, it makes use of <A
+HREF="http://www.gnupg.org/">GNU Privacy Guard</A> to verify the
+contents of the dynamic blocklist so you will need to have working that
+as well.  Finally, it requires the following Perl modules:</P>
+
+<UL>
+   <LI><CODE>Carp</CODE></LI>
+   <LI><CODE>Getopt::Long</CODE></LI>
+   <LI><CODE>LWP::Debug</CODE></LI>
+   <LI><CODE>LWP::UserAgent</CODE></LI>
+</UL>
+
+<P>If your system does not have these modules installed already, visit
+<A HREF="http://search.cpan.org/">CPAN</A> for help.  Note that
+<CODE>LWP::Debug</CODE> and <CODE>LWP::UserAgent</CODE> are not included
+with the default Perl distribution so you may need to install them
+yourself; you can find them as part of the <A
+HREF="http://search.cpan.org/dist/libwww-perl/">LWP library</A>.</P>
+
+<P>Note: <A HREF="http://www.dshield.org/get_block.pl">get_block.pl</A>
+is a Perl script that serves to update the blocklist using DShield.org's
+dynamic list.  It does not, however, handle additional blocks.</P>
+
+
+<H3>Installation</H3>
+
+<OL>
+   <LI>Retrieve the script <A HREF="/code/update-blocklist/update-blocklist">update-blocklist</A>
+      and save it locally.  You may also wish to verify its
+      <A HREF="/code/update-blocklist/update-blocklist.md5">MD5 checksum</A> or, better, its
+      <A HREF="/code/update-blocklist/update-blocklist.asc">GPG signature</A> against
+      <A HREF="/~theall/gpg.html">my current GPG key</A>.</LI>
+
+   <LI>Verify ownership and permissions on the script - it will need to
+      be invoked by root.</LI>
+
+   <LI>Edit the script and set <CODE>$ENV{PATH}</CODE> and <CODE>$proxy</CODE>
+      according to your environment. You may also wish to adjust the
+      location of the perl interpreter in the first line as well as 
+      <CODE>$bl_dynamic</CODE>, <CODE>$bl_static</CODE>,
+      <CODE>$ipt_chain</CODE> and <CODE>$ipt_default_target</CODE> to
+      suit your tastes.</LI>
+
+   <LI>Create empty files specified by <CODE>$bl_dynamic</CODE> and
+      <CODE>$bl_static</CODE>. Make sure that they are owned by root and
+      that untrusted users can not modify them!</LI>
+
+   <LI>If necessary, add the 
+      <A HREF="http://www.dshield.org/dshield_public_key.txt">GnuPG / PGP 
+      public keys used by DShield.org</A> to root's keyring so you can 
+      verify the contents of the dynamic blocklist.</LI>
+
+   <LI>Use <CODE>iptables</CODE> to create a user-defined chain named
+      <CODE>BLOCKLIST</CODE> and route inbound traffic through it.  For 
+      example, suppose you have an input chain named <CODE>INETIN</CODE> 
+      that accepts traffic from the Internet and you want to apply the 
+      blocklist to that traffic.  In that case, you would run the
+      following commands to add a blocklist to your firewall:
+      <OL>
+         <LI><CODE>iptables -N BLOCKLIST</CODE></LI>
+         <LI><CODE>iptables -A BLOCKLIST -j RETURN</CODE></LI>
+         <LI><CODE>iptables -I INETIN 1 -j BLOCKLIST</CODE></LI>
+      </OL>
+      The first command creates the blocklist; the second ensures that
+      unmatched packets (which initially means all packets) continue to
+      be processed in the chain that called <CODE>BLOCKLIST</CODE>, and
+      the third inserts a rule in the chain <CODE>INETIN</CODE> to route
+      all traffic through the blocklist before doing anything else. </LI>
+</OL>
+
+
+<H3>Use</H3>
+
+<P>You will probably want to call <B>update-blocklist</B> once or twice
+a day using cron to keep the blocklist up-to-date.  In addition, you may
+wish to call it from the startup script for your firewall.  And of
+course, you can call it from the commandline whenever you make changes
+to the static list.</P>
+
+<P>The static list is a simple text file, as in this <A
+HREF="blocklist.static">example</A>.  Blank and comment lines are
+ignored; others should have one or more whitespace-delimited fields as
+follows:</P>
+
+<OL>
+   <LI>a source specification (eg, an IP address or network 
+      address range in CIDR format). NB: this is required.</LI>
+   <LI>an optional jump target (eg, DROP, REJECT, etc). NB: if no 
+      jump target is specified, a default one will be used.</LI>
+   <LI>an optional string to be appended as-is to the iptables 
+      command.</LI>
+</OL>
+
+<P>See the iptables man page for more information on these fields.</P>
+
+<P>There are several commandline arguments you can use to override 
+variables defined in the script itself:</P>
+
+<BLOCKQUOTE>
+<DL>
+   <DT>-d, --debug</DT>
+   <DD>Display debugging messages while running, including the iptables
+      commands that would be run to flush and then repopulate the
+      blocklist.  Note, however, that no changes are actually made.</DD>
+
+   <DT>-n, --no-gets</DT>
+   <DD>Update the blocklist without attempting to retrieve the most
+      recent version of the dynamic blocklist.</DD>
+
+   <DT>-s, --static-only</DT>
+   <DD>Update the blocklist using only the static list. Note: this
+      causes any blocks from the dynamic list to be removed.</DD>
+</DL>
+</BLOCKQUOTE>
+
+<P>Notes:</P>
+<UL>
+   <LI>The <CODE>--no-gets</CODE> option is useful if your firewall 
+      starts before your network connection (for example, with PPPoE 
+      and a DSL connection).</LI>
+</UL>
+
+<P>Examples:</P>
+<BLOCKQUOTE>
+<DL>
+   <DT><CODE>update-blocklist</CODE></DT>
+   <DD>updates firewall blocklist.</DD>
+
+   <DT><CODE>update-blocklist -d</CODE></DT>
+   <DD>display commands used to update firewall blocklist without actually
+      doing so.</DD>
+
+   <DT><CODE>update-blocklist -s</CODE></DT>
+   <DD>updates firewall blocklist using only static rules. NB: this 
+      causes any dynamic rules to be removed.</DD>
+
+   <DT><CODE>update-blocklist -n</CODE></DT>
+   <DD>updates firewall blocklist but doesn't retrieve a new copy of
+      the dynamic list.</DD>
+</DL>
+</BLOCKQUOTE>
+
+
+<H3>Known Bugs and Caveats</H3>
+
+<P>Currently, I am not aware of any bugs in this script.</P>
+
+
+<H3>Copyright and License</H3>
+
+<P>Copyright (c) 2003, George A. Theall.<BR>
+All rights reserved.</P>
+
+<P>This script is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.</P>
+
+
+<H3>History</H3>
+
+<CENTER>
+<TABLE CELLPADDING="5" CELLSPACING="0" WIDTH="95%" BORDER="1">
+   <TR>
+      <TH ALIGN="left">Date </TH>
+      <TH ALIGN="left">Version </TH>
+      <TH ALIGN="left">Verification </TH>
+      <TH ALIGN="left">Notes<BR></TH>
+   </TR>
+   <TR>
+      <TH ALIGN="left" VALIGN="top">01-Oct-2003 </TH>
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.00">1.00</A> </TD>
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.00.md5">MD5</A> / 
+         <A HREF="/code/update-blocklist/update-blocklist-1.00.asc">GPG</A> </TD>
+      <TD ALIGN="left" VALIGN="top">
+      <UL>
+         <LI>Initial version.</LI>
+      </UL></TD>
+   </TR>
+</TABLE>
+</CENTER>
+
+
+<HR>
+<H4 ALIGN="center">
+   <A HREF="/">TifaWARE</A> |
+   <A HREF="../">Perl Programs</A> |
+   update-blocklist
+</H4>
+                                                                                
+                                                                                
+<!--#include virtual="/footer.html" -->
+<!--#if expr="$weblint" -->
+</BODY>
+<!--#endif -->
+</HTML>
