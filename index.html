@@ -170,7 +170,7 @@ variables defined in the script itself:</P>
    <DD>updates firewall blocklist.</DD>
 
    <DT><CODE>update-blocklist -d</CODE></DT>
-   <DD>display commands used to update firewall blocklist without actually
+   <DD>displays commands used to update firewall blocklist without actually
       doing so.</DD>
 
    <DT><CODE>update-blocklist -s</CODE></DT>
@@ -188,10 +188,20 @@ variables defined in the script itself:</P>
 
 <P>Currently, I am not aware of any bugs in this script.</P>
 
+<P>If you are having trouble verifying the signature on the dynamic
+blocklist, check whether the key used by DShield.org to sign the
+blocklist has changed and make sure it agrees with
+<CODE>$bl_dynamic_sig_uid</CODE>.</P>
+
+<P>If you encounter a problem using this script, I encourage you to
+enable debug mode (eg, add <CODE>-d</CODE> to your commandline) and
+examine the output it produces before contacting me.  Often, this will
+enable you to resolve the problem yourself.</P>
+
 
 <H3>Copyright and License</H3>
 
-<P>Copyright (c) 2003, George A. Theall.<BR>
+<P>Copyright (c) 2003-2004, George A. Theall.<BR>
 All rights reserved.</P>
 
 <P>This script is free software; you can redistribute it and/or modify
@@ -208,6 +218,22 @@ it under the same terms as Perl itself.</P>
       <TH ALIGN="left">Verification </TH>
       <TH ALIGN="left">Notes<BR></TH>
    </TR>
+   <TR>
+      <TH ALIGN="left" VALIGN="top">18-Oct-2004 </TH>
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.0.1">1.0.1</A> </TD>
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.0.1.md5">MD5</A> / 
+         <A HREF="/code/update-blocklist/update-blocklist-1.0.1.asc">GPG</A> </TD>
+      <TD ALIGN="left" VALIGN="top">
+      <UL>
+         <LI>Changed the bang-path to use <CODE>/usr/bin/perl</CODE> rather
+            than <CODE>/usr/local/bin/perl</CODE>.</LI>
+         <LI>Changed the usage message.</LI>
+         <LI>Changed <CODE>$bl_dynamic_sig_uid</CODE> to reflect the new 
+            DShield.org key (<CODE>0x06D106B7</CODE>)</LI>
+         <LI>Added code to provide help if invalid commandline arguments
+            were supplied.</LI>
+         <LI>Added distribution URL to <CODE>$useragent</CODE>.</LI>
+      </UL></TD>
    <TR>
       <TH ALIGN="left" VALIGN="top">01-Oct-2003 </TH>
       <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.00">1.00</A> </TD>
