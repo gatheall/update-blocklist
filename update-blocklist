@@ -24,7 +24,7 @@ update-blocklist - Updates firewall blocklist.
   # updates firewall blocklist.
   update-blocklist
 
-  # display commands used to update firewall blocklist without actually
+  # displays commands used to update firewall blocklist without actually
   #   doing so.
   update-blocklist -d
 
@@ -87,6 +87,11 @@ you may need to install them yourself.
 =head1 KNOWN BUGS AND CAVEATS
 
 Currently, I am not aware of any bugs in this script.
+
+If you are having trouble verifying the signature on the dynamic
+blocklist, check whether the key used by DShield.org to sign the
+blocklist has changed and make sure it agrees with
+C<$bl_dynamic_sig_uid>. 
 
 If you encounter a problem using this script, I encourage you to enable
 debug mode (eg, add C<-d> to your commandline) and examine the output it
