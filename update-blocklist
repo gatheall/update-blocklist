@@ -1,11 +1,11 @@
-#!/usr/local/bin/perl -wT
+#!/usr/bin/perl -wT
 #
 # ----------------------------------------------------------------------
-# hm2mbox
+# update-blocklist
 #
 # Written by George A. Theall, theall@tifaware.com
 #
-# Copyright (c) 2004, George A. Theall. All rights reserved.
+# Copyright (c) 2003-2004, George A. Theall. All rights reserved.
 #
 # This module is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -47,7 +47,7 @@ responsible for the highest number of attacks reported to DShield.org,
 helps you stay up-to-date with current threats while the static list
 allows you to tailor rules to individual machines. 
 
-Each time you run it, C<update-blocklist> empties and then repopulates
+Each time you run it, B<update-blocklist> empties and then repopulates
 the firewall blocklist (a special user-defined chain through which
 inbound traffic passes).  If the dynamic list is retrieved and verified
 successfully, a copy will be saved for review or re-use.  It will be
@@ -62,12 +62,12 @@ commandline arguments:
                                                 blocklist unchanged.
     n/a                 -n|--no-gets        Update the blocklist but don't
                                                 retrieve a new copy of
-                                                the dynamic list
-    n/a                 -s|--static-only    Update blocklist using only
-                                                the static list
-    $proxy              n/a                 HTTP proxy (if needed)
+                                                the dynamic list.
+    n/a                 -s|--static-only    Update the blocklist using only
+                                                the static list.
+    $proxy              n/a                 HTTP proxy (if needed).
 
-C<update-blocklist> is written in Perl.  It should work on any Linux
+B<update-blocklist> is written in Perl.  It should work on any Linux
 system with Perl 5 and iptables.  In addition, it makes use of GNU
 Privacy Guard to verify the contents of the dynamic blocklist so you
 will need to have working that as well.  Finally, it requires the
@@ -86,7 +86,12 @@ you may need to install them yourself.
 
 =head1 KNOWN BUGS AND CAVEATS
 
-Currently, I am not aware of any bugs in this script. 
+Currently, I am not aware of any bugs in this script.
+
+If you encounter a problem using this script, I encourage you to enable
+debug mode (eg, add C<-d> to your commandline) and examine the output it
+produces before contacting me.  Often, this will enable you to resolve
+the problem yourself.
 
 
 =head1 DIAGNOSTICS
@@ -102,33 +107,12 @@ result in a warning and cause the previously saved version to be used.
 L<iptables(8)>, L<http://www.dshield.org/block_list_info.php>,
 L<http://www.tifaware.com/perl/update-blocklist>.
 
-
-=head1 AUTHOR
-
-George A. Theall, E<lt>theall@tifaware.comE<gt>
-
-
-=head1 COPYRIGHT AND LICENSE
-
-Copyright (c) 2003, George A. Theall.
-All rights reserved.
-
-This script is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself. 
-
-
-=head1 HISTORY
-
-01-Oct-2003, v1.00, George A. Theall
-    o Initial version.
-
 =cut
 
 
 ############################################################################
 # Make sure we have access to the required modules.
-require 5;
-
+use 5;
 use strict;
 use Carp;
 use Getopt::Long;
@@ -144,7 +128,7 @@ my $DEBUG = 0;                          # debugging messages / no updates
 my $bl_dynamic = '/etc/sysconfig/blocklist.dynamic';
 my $bl_dynamic_url = 'http://feeds.dshield.org/block.txt';
 my $bl_dynamic_sig_url = 'http://feeds.dshield.org/block.txt.asc';
-my $bl_dynamic_sig_uid = 'DShield.org (Block List) <blocklist@dshield.org>';
+my $bl_dynamic_sig_uid = 'DShield Blocklist (Used to Sign DShield Blocklist) <blocklist@dshield.org>';
 my $bl_static = '/etc/sysconfig/blocklist.static';
 my $ipt_chain = 'BLOCKLIST';            # iptables chain to use
 my $ipt_default_target = 'DROP';        # default target to use for blocking
@@ -156,7 +140,9 @@ my $proxy = '';
 #     - authenticated as user 'user' w/ password 'pass' via proxy2.domain.com.
 # my $proxy = 'http://user:pass@proxy2.domain.com';
 my $scratch = "/tmp/block-$$.txt";      # temp copy of blocklist
-my $useragent = 'update-blocklist/1.00';
+my $useragent = 'update-blocklist/1.0.1' .
+                    ' (http://www.tifaware.com/perl/update-blocklist/)';
+
 umask 0022;
 
 
@@ -169,12 +155,23 @@ Getopt::Long::Configure('bundling');
 GetOptions(
     \%options,
     "debug|d!",
-    "help|?!",
+    "help|h|?!",
     "no-gets|n|",
     "static-only|s|",
-);
+) or $options{help} = 1;
+$0 =~ s/^.+\///;
 if ($options{help}) {
-    print STDERR "Usage: $0 [-d|--debug] [-n|--no-gets] [-s|--static-only]\n";
+    warn "\n",
+        "Usage: $0 [options]\n",
+        "\n",
+        "Options:\n",
+        "  -?, -h, --help             Display this help and exit.\n",
+        "  -d, --debug                Display copious debugging messages but\n",
+        "                               don't actually change the blocklist.\n",
+        "  -n, --no-gets              Update the blocklist but don't retrieve\n",
+        "                               a new copy of the dynamic blocklist.\n",
+        "  -s, --static-only          Update the blocklist using only the\n",
+        "                               static list.\n";
     exit(9);
 }
 
@@ -183,7 +180,7 @@ if ($options{help}) {
 # Retrieve DShield's dynamic blocklist if desired.
 unless ($options{'no-gets'} or $options{'static-only'}) {
     if ($DEBUG) {
-        print STDERR "debug: retrieving '$bl_dynamic_url' as '$scratch'.\n" if $DEBUG;
+        warn "debug: retrieving '$bl_dynamic_url' as '$scratch'.\n" if $DEBUG;
         require LWP::Debug; import LWP::Debug qw(+);
     }
     my $ua = LWP::UserAgent->new(
@@ -199,20 +196,20 @@ unless ($options{'no-gets'} or $options{'static-only'}) {
 
     if ($response->is_success) {
         # - retrieve signature.
-        print STDERR "debug: retrieving '$bl_dynamic_sig_url' as '$scratch.asc'.\n" if $DEBUG;
+        warn "debug: retrieving '$bl_dynamic_sig_url' as '$scratch.asc'.\n" if $DEBUG;
         $response = $ua->get(
             $bl_dynamic_sig_url,
             ':content_file' => "$scratch.asc",
         );
         if ($response->is_success) {
             # - attempt to verify signature.
-            print STDERR "debug: verifying signature.\n" if $DEBUG;
+            warn "debug: verifying signature.\n" if $DEBUG;
             my $cmd = "gpg $scratch.asc";
             my $uid;
             open(CMD, "$cmd 2>&1 |") or croak "Can't run '$cmd' - $!\n";
             while (<CMD>) {
                 chomp;
-                print STDERR "debug:   $_\n" if $DEBUG;
+                warn "debug:   $_\n" if $DEBUG;
                 $uid = $1 if (/Good signature from \"(.+)\"$/i);
             }
             close(CMD);
@@ -224,7 +221,7 @@ unless ($options{'no-gets'} or $options{'static-only'}) {
             else {
                 # - update dynamic blocklist.
                 if ($DEBUG) {
-                    print STDERR "debug: using '$scratch' as dynamic blocklist!\n";
+                    warn "debug: using '$scratch' as dynamic blocklist!\n";
                     $bl_dynamic = $scratch;
                 }
                 else {
@@ -251,12 +248,12 @@ unless ($options{'no-gets'} or $options{'static-only'}) {
 my @cmds;
 # - static blocks.
 my $line;
-print STDERR "debug: reading static blocks from '$bl_static'.\n" if $DEBUG;
+warn "debug: reading static blocks from '$bl_static'.\n" if $DEBUG;
 open(FILE, $bl_static) or croak "Can't read '$bl_static' - $!\n";
 while (<FILE>) {
     chomp;
     ++$line;
-    print STDERR "debug:   line $line: '$_'.\n" if ($DEBUG);
+    warn "debug:   line $line: '$_'.\n" if ($DEBUG);
     s/#.*$//;                               # nb: strip out any comments.
     next if (/^\s*$/);                      # nb: skip empty lines.
 
@@ -287,20 +284,20 @@ while (<FILE>) {
     # nb: add a jump if there's not one already.
     $cmd .= " -j $ipt_default_target" unless ($cmd =~ /-j /);
 
-    print STDERR "debug:     command is '$cmd'.\n" if ($DEBUG);
+    warn "debug:     command is '$cmd'.\n" if ($DEBUG);
     push(@cmds, $cmd);
 }
 close(FILE);
 
 # - dynamic blocks.
 unless ($options{'static-only'}) {
-    print STDERR "debug: reading dynamic blocks from '$bl_dynamic'.\n" if $DEBUG;
+    warn "debug: reading dynamic blocks from '$bl_dynamic'.\n" if $DEBUG;
     $line = 0;
     open(FILE, $bl_dynamic) or croak "Can't read '$bl_dynamic' - $!\n";
     while (<FILE>) {
         chomp;
         ++$line;
-        print STDERR "debug:   line $line: '$_'.\n" if ($DEBUG);
+        warn "debug:   line $line: '$_'.\n" if ($DEBUG);
         next unless (/^\d+/);
         my $cmd = "iptables -I $ipt_chain ";
 
@@ -320,7 +317,7 @@ unless ($options{'static-only'}) {
         }
         $cmd .= "-s $start/$subnet -j $ipt_default_target";
 
-        print STDERR "debug:     command is '$cmd'.\n" if ($DEBUG);
+        warn "debug:     command is '$cmd'.\n" if ($DEBUG);
         push(@cmds, $cmd);
     }
     close(FILE);
@@ -338,10 +335,10 @@ unshift(@cmds, "iptables -I $ipt_chain -j RETURN");
 unshift(@cmds, "iptables -F $ipt_chain || iptables -N $ipt_chain");
 
 if ($DEBUG) {
-    print STDERR "debug: would issue the following commands:\n",
+    warn "debug: would issue the following commands:\n",
         "debug:   ", join("\ndebug:   ", @cmds), "\n";
     unless ($options{'static-only'}) {
-        print STDERR "debug:\n",
+        warn "debug:\n",
             "debug: updated dynamic blocklist available as '$scratch'\n";
     }
 }
