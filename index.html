@@ -24,45 +24,113 @@
 <H3>Introduction</H3>
 
 <P>This script updates rules used by an iptables-based firewall to block
-inbound traffic.  You can use it to filter incoming traffic based on the
-<A HREF="http://www.dshield.org/block_list_info.php">dynamic list</A> of
-sources maintained by <A HREF="http://www.dshield.org/">DShield.org</A>
-as well as a static list maintained locally.  The dynamic list, by
-identifying networks responsible for the highest number of attacks
-reported to DShield.org, helps you stay up-to-date with current threats
-while the static list allows you to tailor rules to individual
-machines.</P>
+inbound traffic.  You can use it to filter incoming traffic based on a
+static list maintained locally or one or more dynamic lists available on
+the web, such as <A
+HREF="http://www.dshield.org/block_list_info.php">DShield.org's Block
+List</A> and <A HREF="http://www.spamhaus.org/drop/index.lasso">The
+Spamhaus Don't Route Or Peer List</A>.  The static list allows you to
+tailor rules to individual machines while dynamic lists help you stay
+up-to-date with current threats.</P>
 
-<P>Each time you run it, <B>update-blocklist</B> empties and then
+<P>Each time you run it, <B>update-blocklist</B> flushes and then
 repopulates the firewall blocklist (a special user-defined chain through
-which inbound traffic passes).  If the dynamic list is retrieved and
-verified successfully, a copy will be saved for review or re-use.  It
-will be re-used in the event the option <CODE>--no-gets</CODE> is given
-or the current blocklist can not be retrieved or verified.</P>
+which inbound traffic passes).  If a dynamic list is retrieved and,
+optionally, verified successfully, a copy will be saved for review and
+re-use.  It will be re-used in the event the option
+<CODE>--no-gets</CODE> is given or a current copy can not be retrieved
+or verified.</P>
 
 <P><B>update-blocklist</B> is written in Perl.  It should work on any
-Linux system with Perl 5 and iptables.  In addition, it makes use of <A
-HREF="http://www.gnupg.org/">GNU Privacy Guard</A> to verify the
-contents of the dynamic blocklist so you will need to have working that
-as well.  Finally, it requires the following Perl modules:</P>
+Linux system with Perl 5 and iptables.  In addition, it can be
+configured to use <A HREF="http://www.gnupg.org/">GNU Privacy Guard</A>
+or <CODE>md5sum</CODE> to verify the contents of a dynamic blocklist so
+you may need to have working that as well.  Finally, it requires the
+following Perl modules:</P>
 
 <UL>
    <LI><CODE>Carp</CODE></LI>
+   <LI><CODE>File::Copy</CODE></LI>
+   <LI><CODE>File::Temp</CODE></LI>
    <LI><CODE>Getopt::Long</CODE></LI>
    <LI><CODE>LWP::Debug</CODE></LI>
    <LI><CODE>LWP::UserAgent</CODE></LI>
+   <LI><CODE>Net::IP</CODE></LI>
 </UL>
 
 <P>If your system does not have these modules installed already, visit
 <A HREF="http://search.cpan.org/">CPAN</A> for help.  Note that
-<CODE>LWP::Debug</CODE> and <CODE>LWP::UserAgent</CODE> are not included
-with the default Perl distribution so you may need to install them
-yourself; you can find them as part of the <A
-HREF="http://search.cpan.org/dist/libwww-perl/">LWP library</A>.</P>
+<CODE>LWP::Debug</CODE>, <CODE>LWP::UserAgent</CODE>, and
+<CODE>Net::IP</CODE> are not included with the default Perl distribution
+so you may need to install them yourself; you can find the first two as
+part of the <A HREF="http://search.cpan.org/dist/libwww-perl/">LWP
+library</A>.</P>
 
-<P>Note: <A HREF="http://www.dshield.org/get_block.pl">get_block.pl</A>
-is a Perl script that serves to update the blocklist using DShield.org's
-dynamic list.  It does not, however, handle additional blocks.</P>
+
+<H3>Configuring Dynamic Blocklists</H3>
+
+<P>For each dynamic blocklist you wish to support with this script, you
+must have an element in the array <CODE>@bl_dynamic</CODE>.  This
+element, known as a <I>hash</I> in Perl, should itself contain several
+other elements -- key / value pairs -- as follows:</P>
+
+<CENTER>
+<TABLE CELLPADDING="5" CELLSPACING="0" WIDTH="90%" BORDER="1">
+   <TR>
+      <TH ALIGN="left">Key </TH>
+      <TH ALIGN="left">Value<BR></TH>
+   </TR>
+   <TR>
+      <TH ALIGN="left"><CODE>label</CODE> </TH>
+      <TD>A string used as the label for the blocklist. Optional.<BR></TD>
+   </TR>
+   <TR>
+      <TH ALIGN="left"><CODE>url</CODE> </TH>
+      <TD>A string used as the URL from which the blocklist is to be
+         retrieved. Any protocol scheme supported by LWP is valid; eg,
+         http, https, ftp, etc. <B>Required</B>.<BR></TD>
+   </TR>
+   <TR>
+      <TH ALIGN="left"><CODE>verify</CODE> </TH>
+      <TD>A hash indicating that the contents of the blocklist should
+         be verified. Optional.<BR></TD>
+   </TR>
+   <TR>
+      <TH ALIGN="left"><CODE>method</CODE> </TH>
+      <TD>A string within the <CODE>verify</CODE> hash indicating 
+         the method used to verify the blocklist contents -- either
+         <CODE>gpg</CODE> and <CODE>md5</CODE>. Required if 
+         the blocklist is to be verified.<BR></TD>
+   </TR>
+   <TR>
+      <TH ALIGN="left"><CODE>url</CODE> </TH>
+      <TD>A string within the <CODE>verify</CODE> hash indicating 
+         the url from which the GPG signature or MD5 checksum can
+         be retrieved for verifying the blocklist. Required if 
+         the blocklist is to be verified.<BR></TD>
+   </TR>
+   <TR>
+      <TH ALIGN="left"><CODE>uid</CODE> </TH>
+      <TD>A string within the <CODE>verify</CODE> hash indicating 
+         the uid of the GPG key used to sign the blocklist.
+         Optional if the blocklist is to be verified.<BR></TD>
+   </TR>
+   <TR>
+      <TH ALIGN="left"><CODE>parse</CODE> </TH>
+      <TD>An anonymous subroutine that accepts a line from 
+         the blocklist and returns a rule specification,
+         if possible. <B>Required</B>.<BR></TD>
+   </TR>
+   <TR>
+      <TH ALIGN="left"><CODE>copy</CODE> </TH>
+      <TD>A string used as the file name in which a copy of the 
+         blocklist will be stored. <B>Required</B>.<BR></TD>
+   </TR>
+</TABLE>
+</CENTER>
+
+<P>Consult the <A HREF="update-blocklist.conf">sample configuration
+file</A> to see how these various elements are used.</P>
 
 
 <H3>Installation</H3>
@@ -74,24 +142,29 @@ dynamic list.  It does not, however, handle additional blocks.</P>
       <A HREF="/code/update-blocklist/update-blocklist.asc">GPG signature</A> against
       <A HREF="/~theall/gpg.html">my current GPG key</A>.</LI>
 
-   <LI>Verify ownership and permissions on the script - it will need to
-      be invoked by root.</LI>
+   <LI>Retrieve the sample configuration file 
+      <A HREF="update-blocklist.conf">update-blocklist.conf</A> and save it 
+      locally; eg, as <CODE>/usr/local/etc/update-blocklist.conf</CODE>.</LI>
 
-   <LI>Edit the script and set <CODE>$ENV{PATH}</CODE> and <CODE>$proxy</CODE>
-      according to your environment. You may also wish to adjust the
-      location of the perl interpreter in the first line as well as 
-      <CODE>$bl_dynamic</CODE>, <CODE>$bl_static</CODE>,
-      <CODE>$ipt_chain</CODE> and <CODE>$ipt_default_target</CODE> to
-      suit your tastes.</LI>
+   <LI>Verify ownership and permissions on the script and configuration
+      file - they should be owned by root.</LI>
 
-   <LI>Create empty files specified by <CODE>$bl_dynamic</CODE> and
+   <LI>Edit the script / configuration file and set <CODE>$ENV{PATH}</CODE> 
+      and <CODE>$proxy</CODE> according to your environment. You may also 
+      wish to adjust the location of the perl interpreter in the first 
+      line of the script as well as <CODE>@bl_dynamic</CODE>, 
+      <CODE>$bl_static</CODE>, <CODE>$ipt_chain</CODE>, 
+      <CODE>$ipt_default_target</CODE>, and <CODE>$optimize</CODE>
+      to suit your tastes.</LI>
+
+   <LI>Create empty files specified by <CODE>@bl_dynamic</CODE> and
       <CODE>$bl_static</CODE>. Make sure that they are owned by root and
       that untrusted users can not modify them!</LI>
 
-   <LI>If necessary, add the 
-      <A HREF="http://www.dshield.org/dshield_public_key.txt">GnuPG / PGP 
-      public keys used by DShield.org</A> to root's keyring so you can 
-      verify the contents of the dynamic blocklist.</LI>
+   <LI>If necessary, add any GnuPG / PGP keys (eg, 
+      <A HREF="http://www.dshield.org/dshield_public_key.txt">for 
+      DShield.org</A>) to root's keyring so you can verify the
+      contents of any dynamic blocklists as desired.</LI>
 
    <LI>Use <CODE>iptables</CODE> to create a user-defined chain named
       <CODE>BLOCKLIST</CODE> and route inbound traffic through it.  For 
@@ -108,17 +181,20 @@ dynamic list.  It does not, however, handle additional blocks.</P>
       unmatched packets (which initially means all packets) continue to
       be processed in the chain that called <CODE>BLOCKLIST</CODE>, and
       the third inserts a rule in the chain <CODE>INETIN</CODE> to route
-      all traffic through the blocklist before doing anything else. </LI>
+      all traffic through the blocklist before doing anything else. When
+      you're satisfied things are working, be sure to save the rules
+      using <CODE>iptables-save</CODE> so everthing will work when
+      you restart iptables.</LI>
 </OL>
 
 
 <H3>Use</H3>
 
-<P>You will probably want to call <B>update-blocklist</B> once or twice
-a day using cron to keep the blocklist up-to-date.  In addition, you may
-wish to call it from the startup script for your firewall.  And of
-course, you can call it from the commandline whenever you make changes
-to the static list.</P>
+<P>If you are using any dynamic blocklists, you will probably want to
+call <B>update-blocklist</B> once or twice a day using cron to keep the
+blocklist up-to-date.  In addition, you may wish to call it from the
+startup script for your firewall.  And of course, you can call it from
+the commandline whenever you make changes to the static list.</P>
 
 <P>The static list is a simple text file, as in this <A
 HREF="blocklist.static">example</A>.  Blank and comment lines are
@@ -136,7 +212,7 @@ follows:</P>
 
 <P>See the iptables man page for more information on these fields.</P>
 
-<P>There are several commandline arguments you can use to override 
+<P>There are several commandline arguments you can use to override
 variables defined in the script itself:</P>
 
 <BLOCKQUOTE>
@@ -147,12 +223,15 @@ variables defined in the script itself:</P>
       blocklist.  Note, however, that no changes are actually made.</DD>
 
    <DT>-n, --no-gets</DT>
-   <DD>Update the blocklist without attempting to retrieve the most
-      recent version of the dynamic blocklist.</DD>
+   <DD>Update the blocklist without attempting to retrieve new copies
+      of dynamic blocklists.</DD>
+
+   <DT>-o, --optimize</DT>
+   <DD>Optimize the rules by checking for overlap.</DD>
 
    <DT>-s, --static-only</DT>
    <DD>Update the blocklist using only the static list. Note: this
-      causes any blocks from the dynamic list to be removed.</DD>
+      causes any blocks from dynamic lists to be removed.</DD>
 </DL>
 </BLOCKQUOTE>
 
@@ -178,8 +257,8 @@ variables defined in the script itself:</P>
       causes any dynamic rules to be removed.</DD>
 
    <DT><CODE>update-blocklist -n</CODE></DT>
-   <DD>updates firewall blocklist but doesn't retrieve a new copy of
-      the dynamic list.</DD>
+   <DD>updates firewall blocklist but doesn't retrieve new copies of
+      dynamic lists.</DD>
 </DL>
 </BLOCKQUOTE>
 
@@ -188,10 +267,9 @@ variables defined in the script itself:</P>
 
 <P>Currently, I am not aware of any bugs in this script.</P>
 
-<P>If you are having trouble verifying the signature on the dynamic
-blocklist, check whether the key used by DShield.org to sign the
-blocklist has changed and make sure it agrees with
-<CODE>$bl_dynamic_sig_uid</CODE>.</P>
+<P>Rule optimization can slow things down significantly.  Disable it if
+you don't mind the inefficiencies that entails or prefer to handle it
+manually.</P>
 
 <P>If you encounter a problem using this script, I encourage you to
 enable debug mode (eg, add <CODE>-d</CODE> to your commandline) and
@@ -201,7 +279,7 @@ enable you to resolve the problem yourself.</P>
 
 <H3>Copyright and License</H3>
 
-<P>Copyright (c) 2003-2004, George A. Theall.<BR>
+<P>Copyright (c) 2003-2005, George A.  Theall.<BR> 
 All rights reserved.</P>
 
 <P>This script is free software; you can redistribute it and/or modify
@@ -219,6 +297,27 @@ it under the same terms as Perl itself.</P>
       <TH ALIGN="left">Notes<BR></TH>
    </TR>
    <TR>
+      <TH ALIGN="left" VALIGN="top">11-Apr-2005 </TH>
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.1.0">1.1.0</A> </TD>
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.1.0.md5">MD5</A> / 
+         <A HREF="/code/update-blocklist/update-blocklist-1.1.0.asc">GPG</A> </TD>
+      <TD ALIGN="left" VALIGN="top">
+      <UL>
+         <LI>Added support for an external configuration file.</LI>
+         <LI>Added support for for multiple dynamic blocklists and made
+            their processing a configurable option.</LI>
+         <LI>Added support for 
+            <A HREF="http://www.spamhaus.org/drop/index.lasso">The Spamhaus
+            Don't Route Or Peer List</A> in the sample configuration file.</LI>
+         <LI>Added support for optional rule optimization to remove 
+            overlapping / duplicate rules.</LI>
+         <LI>Improved debugging by including the source of each rule in
+            the debugging output.</LI>
+         <LI>Eliminated shell processing when invoking external commands
+            to improve security.</LI>
+      </UL></TD>
+   </TR>
+   <TR>
       <TH ALIGN="left" VALIGN="top">18-Oct-2004 </TH>
       <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.0.1">1.0.1</A> </TD>
       <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.0.1.md5">MD5</A> / 
@@ -234,6 +333,7 @@ it under the same terms as Perl itself.</P>
             were supplied.</LI>
          <LI>Added distribution URL to <CODE>$useragent</CODE>.</LI>
       </UL></TD>
+   </TR>
    <TR>
       <TH ALIGN="left" VALIGN="top">01-Oct-2003 </TH>
       <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.00">1.00</A> </TD>
