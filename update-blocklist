@@ -5,7 +5,7 @@
 #
 # Written by George A. Theall, theall@tifaware.com
 #
-# Copyright (c) 2003-2005, George A. Theall. All rights reserved.
+# Copyright (c) 2003-2007, George A. Theall. All rights reserved.
 #
 # This module is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -471,6 +471,6 @@ foreach my $rule (sort {$a <=> $b} keys %rules) {
         my @parts = split(/\s+/, $rules{$rule});
         system "iptables", "-A", $ipt_chain, @parts;
         my $rc = $? >> 8;
-        croak "'iptables ", join(" ", @parts), "' failed with rc $rc!\n" if ($rc);
+        croak "'iptables -A $ipt_chain ", join(" ", @parts), "' failed with rc $rc!\n" if ($rc);
     }
 }
