@@ -5,7 +5,7 @@
 #
 # Written by George A. Theall, theall@tifaware.com
 #
-# Copyright (c) 2003-2007, George A. Theall. All rights reserved.
+# Copyright (c) 2003-2010, George A. Theall. All rights reserved.
 #
 # This module is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -42,7 +42,7 @@ update-blocklist - Updates firewall blocklist.
 This script updates rules used by an iptables-based firewall to block
 inbound traffic.  You can use it to filter incoming traffic based on a
 static list maintained locally or one or more dynamic lists available on
-the web, such as DShield.org's Block List and The Spamhaus Don't Route
+the web, such as DShield.org's Top Sources and The Spamhaus Don't Route
 Or Peer List.  The static list allows you to tailor rules to individual
 machines while dynamic lists help you stay up-to-date with current
 threats. 
@@ -114,7 +114,7 @@ used.
 
 =head1 SEE ALSO
 
-L<iptables(8)>, L<http://www.dshield.org/block_list_info.php>,
+L<iptables(8)>, L<http://www.dshield.org/sources.html>,
 L<http://www.spamhaus.org/drop/index.lasso>,
 L<http://www.tifaware.com/perl/update-blocklist>. 
 
@@ -226,7 +226,7 @@ unless ($options{'no-gets'} or $options{'static-only'}) {
             agent => $useragent,
         );
         if (defined($proxy)) {
-            $ua->proxy('http', $proxy);
+            $ua->proxy(['http', 'https', 'ftp'], $proxy);
         }
         my $response = $ua->get(
             $url,
