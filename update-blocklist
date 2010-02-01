@@ -42,10 +42,10 @@ update-blocklist - Updates firewall blocklist.
 This script updates rules used by an iptables-based firewall to block
 inbound traffic.  You can use it to filter incoming traffic based on a
 static list maintained locally or one or more dynamic lists available on
-the web, such as DShield.org's Top Sources and The Spamhaus Don't Route
-Or Peer List.  The static list allows you to tailor rules to individual
-machines while dynamic lists help you stay up-to-date with current
-threats. 
+the web, such as DShield.org's Highly Predictive Blacklist and The
+Spamhaus Don't Route Or Peer List.  The static list allows you to tailor
+rules to individual machines while dynamic lists help you stay
+up-to-date with current threats. 
 
 Each time you run it, B<update-blocklist> flushes and then repopulates
 the firewall blocklist (a special user-defined chain through which
@@ -114,7 +114,7 @@ used.
 
 =head1 SEE ALSO
 
-L<iptables(8)>, L<http://www.dshield.org/sources.html>,
+L<iptables(8)>, L<http://www.dshield.org/hpbinfo.html>,
 L<http://www.spamhaus.org/drop/index.lasso>,
 L<http://www.tifaware.com/perl/update-blocklist>. 
 
