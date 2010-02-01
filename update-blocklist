@@ -69,9 +69,9 @@ commandline arguments:
 
 B<update-blocklist> is written in Perl.  It should work on any Linux
 system with Perl 5 and iptables.  In addition, it can be configured to
-use GNU Privacy Guard or C<md5sum>to verify the contents of a dynamic
-blocklist so you may need to have working that as well.  Finally, it
-requires the following Perl modules:
+use GNU Privacy Guard, C<md5sum>, or C<sha256sum> to verify the contents
+of a dynamic blocklist so you may need to have working that as well. 
+Finally, it requires the following Perl modules:
 
     o Carp
     o File::Copy
@@ -242,7 +242,7 @@ unless ($options{'no-gets'} or $options{'static-only'}) {
             my $method = $bl->{verify}{method};
             my $vurl = $bl->{verify}{url};
             if ($method) {
-                if (grep(/^$method$/, ("gpg", "md5"))) {
+                if (grep(/^$method$/, ("gpg", "sha256", "md5"))) {
                     if (!$vurl) {
                         warn "*** No URL configured for verification for '$label'; skipped. ***\n";
                         next;
@@ -265,7 +265,16 @@ unless ($options{'no-gets'} or $options{'static-only'}) {
             }
 
             warn "debug: verifying contents of blocklist with '$method'.\n" if $DEBUG;
-            if ($method eq 'md5') {
+            if ($method eq 'sha256') {
+                system 'sha256sum', '--status', '--check', "$scratch.verify";
+                my $rc = $? >> 8;
+                unlink "$scratch.verify";
+                if ($rc) {
+                    warn "*** SHA256 checksum verification for '$label' failed ($rc)! ***\n";
+                    next;
+                }
+            }
+            elsif ($method eq 'md5') {
                 system 'md5sum', '--status', '--check', "$scratch.verify";
                 my $rc = $? >> 8;
                 unlink "$scratch.verify";
