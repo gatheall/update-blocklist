@@ -148,7 +148,7 @@ our $optimize = 1;                      # optimize rulesets (0/1)
 our $proxy = '';
 my $useragent = 'update-blocklist/1.1.0' .
                     ' (http://www.tifaware.com/perl/update-blocklist/)';
-umask 022;
+umask 0022;
 
 
 ############################################################################
