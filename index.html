@@ -27,11 +27,12 @@
 inbound traffic.  You can use it to filter incoming traffic based on a
 static list maintained locally or one or more dynamic lists available on
 the web, such as <A
-HREF="http://www.dshield.org/block_list_info.php">DShield.org's Block
-List</A> and <A HREF="http://www.spamhaus.org/drop/index.lasso">The
-Spamhaus Don't Route Or Peer List</A>.  The static list allows you to
-tailor rules to individual machines while dynamic lists help you stay
-up-to-date with current threats.</P>
+HREF="http://www.dshield.org/hpbinfo.html">DShield.org's Highly
+Predictive Blacklist</A> and <A
+HREF="http://www.spamhaus.org/drop/index.lasso">The Spamhaus Don't Route
+Or Peer List</A>.  The static list allows you to tailor rules to
+individual machines while dynamic lists help you stay up-to-date with
+current threats.</P>
 
 <P>Each time you run it, <B>update-blocklist</B> flushes and then
 repopulates the firewall blocklist (a special user-defined chain through
@@ -43,10 +44,10 @@ or verified.</P>
 
 <P><B>update-blocklist</B> is written in Perl.  It should work on any
 Linux system with Perl 5 and iptables.  In addition, it can be
-configured to use <A HREF="http://www.gnupg.org/">GNU Privacy Guard</A>
-or <CODE>md5sum</CODE> to verify the contents of a dynamic blocklist so
-you may need to have working that as well.  Finally, it requires the
-following Perl modules:</P>
+configured to use <A HREF="http://www.gnupg.org/">GNU Privacy Guard</A>,
+<CODE>md5sum</CODE>, or <CODE>sha256sum</CODE> to verify the contents of
+a dynamic blocklist so you may need to have working that as well. 
+Finally, it requires the following Perl modules:</P>
 
 <UL>
    <LI><CODE>Carp</CODE></LI>
@@ -99,15 +100,15 @@ other elements -- key / value pairs -- as follows:</P>
       <TH ALIGN="left"><CODE>method</CODE> </TH>
       <TD>A string within the <CODE>verify</CODE> hash indicating 
          the method used to verify the blocklist contents -- either
-         <CODE>gpg</CODE> and <CODE>md5</CODE>. Required if 
-         the blocklist is to be verified.<BR></TD>
+         <CODE>gpg</CODE>, <CODE>md5</CODE>, or <CODE>sha256</CODE>. 
+         Required if the blocklist is to be verified.<BR></TD>
    </TR>
    <TR>
       <TH ALIGN="left"><CODE>url</CODE> </TH>
       <TD>A string within the <CODE>verify</CODE> hash indicating 
-         the url from which the GPG signature or MD5 checksum can
-         be retrieved for verifying the blocklist. Required if 
-         the blocklist is to be verified.<BR></TD>
+         the url from which the GPG signature or SHA256 / MD5 
+         checksum can be retrieved for verifying the blocklist. 
+         Required if the blocklist is to be verified.<BR></TD>
    </TR>
    <TR>
       <TH ALIGN="left"><CODE>uid</CODE> </TH>
@@ -138,7 +139,7 @@ file</A> to see how these various elements are used.</P>
 <OL>
    <LI>Retrieve the script <A HREF="/code/update-blocklist/update-blocklist">update-blocklist</A>
       and save it locally.  You may also wish to verify its
-      <A HREF="/code/update-blocklist/update-blocklist.md5">MD5 checksum</A> or, better, its
+      <A HREF="/code/update-blocklist/update-blocklist.sha256sum">SHA256 checksum</A> or, better, its
       <A HREF="/code/update-blocklist/update-blocklist.asc">GPG signature</A> against
       <A HREF="/~theall/gpg.html">my current GPG key</A>.</LI>
 
@@ -161,10 +162,8 @@ file</A> to see how these various elements are used.</P>
       <CODE>$bl_static</CODE>. Make sure that they are owned by root and
       that untrusted users can not modify them!</LI>
 
-   <LI>If necessary, add any GnuPG / PGP keys (eg, 
-      <A HREF="http://www.dshield.org/dshield_public_key.txt">for 
-      DShield.org</A>) to root's keyring so you can verify the
-      contents of any dynamic blocklists as desired.</LI>
+   <LI>If necessary, add any GnuPG / PGP keys to root's keyring so you can 
+      verify the contents of any dynamic blocklists as desired.</LI>
 
    <LI>Use <CODE>iptables</CODE> to create a user-defined chain named
       <CODE>BLOCKLIST</CODE> and route inbound traffic through it.  For 
@@ -279,7 +278,7 @@ enable you to resolve the problem yourself.</P>
 
 <H3>Copyright and License</H3>
 
-<P>Copyright (c) 2003-2007, George A.  Theall.<BR> 
+<P>Copyright (c) 2003-2010, George A.  Theall.<BR> 
 All rights reserved.</P>
 
 <P>This script is free software; you can redistribute it and/or modify
@@ -297,9 +296,22 @@ it under the same terms as Perl itself.</P>
       <TH ALIGN="left">Notes<BR></TH>
    </TR>
    <TR>
+      <TH ALIGN="left" VALIGN="top">31-Jan-2010 </TH>
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.1.1">1.1.1</A> </TD>
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.1.1.sha256sum">SHA256</A> / 
+         <A HREF="/code/update-blocklist/update-blocklist-1.1.1.asc">GPG</A> </TD>
+      <TD ALIGN="left" VALIGN="top">
+      <UL>
+         <LI>Referenced DShield's Highly Predictive Blacklist instead of their
+            old block list.</LI>
+         <LI>Added support for SHA256 checksums.</LI>
+         <LI>Added 'https' and 'ftp' to the list of schemas used by a proxy.</LI>
+      </UL></TD>
+   </TR>
+   <TR>
       <TH ALIGN="left" VALIGN="top">11-Apr-2005 </TH>
       <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.1.0">1.1.0</A> </TD>
-      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.1.0.md5">MD5</A> / 
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.1.0.sha256sum">SHA256</A> / 
          <A HREF="/code/update-blocklist/update-blocklist-1.1.0.asc">GPG</A> </TD>
       <TD ALIGN="left" VALIGN="top">
       <UL>
@@ -320,7 +332,7 @@ it under the same terms as Perl itself.</P>
    <TR>
       <TH ALIGN="left" VALIGN="top">18-Oct-2004 </TH>
       <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.0.1">1.0.1</A> </TD>
-      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.0.1.md5">MD5</A> / 
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.0.1.sha256sum">SHA256</A> / 
          <A HREF="/code/update-blocklist/update-blocklist-1.0.1.asc">GPG</A> </TD>
       <TD ALIGN="left" VALIGN="top">
       <UL>
@@ -337,7 +349,7 @@ it under the same terms as Perl itself.</P>
    <TR>
       <TH ALIGN="left" VALIGN="top">01-Oct-2003 </TH>
       <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.00">1.00</A> </TD>
-      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.00.md5">MD5</A> / 
+      <TD ALIGN="left" VALIGN="top"><A HREF="/code/update-blocklist/update-blocklist-1.00.sha256sum">SHA256</A> / 
          <A HREF="/code/update-blocklist/update-blocklist-1.00.asc">GPG</A> </TD>
       <TD ALIGN="left" VALIGN="top">
       <UL>
