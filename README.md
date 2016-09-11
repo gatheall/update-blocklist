@@ -4,7 +4,7 @@ A script to update an iptables-based firewall to block inbound traffic using a d
 
 ## Introduction
 
-This script updates rules used by an iptables-based firewall to block inbound traffic.  You can use it to filter incoming traffic based on a static list maintained locally or one or more dynamic lists available on the web, such as [DShield.org's Highly Predictive Blacklist](http://www.dshield.org/hpbinfo.html) and [The Spamhaus Don't Route Or Peer List](http://www.spamhaus.org/drop/index.lasso).  The static list allows you to tailor rules to individual machines while dynamic lists help you stay up-to-date with current threats. 
+This script updates rules used by an iptables-based firewall to block inbound traffic.  You can use it to filter incoming traffic based on a static list maintained locally or one or more dynamic lists available on the web, such as [DShield.org's Highly Predictive Blacklist](http://www.dshield.org/hpbinfo.html) and [The Spamhaus Don't Route Or Peer List](http://www.spamhaus.org/drop/).  The static list allows you to tailor rules to individual machines while dynamic lists help you stay up-to-date with current threats. 
 
 Each time you run it, **update-blocklist** flushes and then repopulates the firewall blocklist (a special user-defined chain through which inbound traffic passes).  If a dynamic list is retrieved and, optionally, verified successfully, a copy will be saved for review and re-use.  It will be re-used in the event the option `--no-gets` is given or a current copy can not be retrieved or verified. 
 
