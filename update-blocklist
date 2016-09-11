@@ -115,7 +115,7 @@ used.
 =head1 SEE ALSO
 
 L<iptables(8)>, L<http://www.dshield.org/hpbinfo.html>,
-L<http://www.spamhaus.org/drop/index.lasso>,
+L<http://www.spamhaus.org/drop/>,
 L<https://github.com/gatheall/update-blocklist>. 
 
 =cut
