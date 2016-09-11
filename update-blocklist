@@ -5,7 +5,7 @@
 #
 # Written by George A. Theall, theall@tifaware.com
 #
-# Copyright (c) 2003-2010, George A. Theall. All rights reserved.
+# Copyright (c) 2003-2016, George A. Theall. All rights reserved.
 #
 # This module is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
@@ -116,7 +116,7 @@ used.
 
 L<iptables(8)>, L<http://www.dshield.org/hpbinfo.html>,
 L<http://www.spamhaus.org/drop/index.lasso>,
-L<http://www.tifaware.com/perl/update-blocklist>. 
+L<https://github.com/gatheall/update-blocklist>. 
 
 =cut
 
@@ -147,7 +147,7 @@ our $ipt_default_target = 'DROP';       # default target to use for blocking
 our $optimize = 1;                      # optimize rulesets (0/1)
 our $proxy = '';
 my $useragent = 'update-blocklist/1.1.0' .
-                    ' (http://www.tifaware.com/perl/update-blocklist/)';
+                    ' (https://github.com/gatheall/update-blocklist)';
 umask 0022;
 
 
