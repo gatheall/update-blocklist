@@ -146,7 +146,7 @@ our $ipt_chain = 'BLOCKLIST';           # iptables chain to use
 our $ipt_default_target = 'DROP';       # default target to use for blocking
 our $optimize = 1;                      # optimize rulesets (0/1)
 our $proxy = '';
-my $useragent = 'update-blocklist/1.1.0' .
+my $useragent = 'update-blocklist/1.1.2' .
                     ' (https://github.com/gatheall/update-blocklist)';
 umask 0022;
 
