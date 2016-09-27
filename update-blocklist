@@ -9,8 +9,6 @@
 #
 # This module is free software; you can redistribute it and/or modify
 # it under the same terms as Perl itself.
-#
-# $Id$
 # ----------------------------------------------------------------------
 
 
@@ -146,8 +144,8 @@ our $ipt_chain = 'BLOCKLIST';           # iptables chain to use
 our $ipt_default_target = 'DROP';       # default target to use for blocking
 our $optimize = 1;                      # optimize rulesets (0/1)
 our $proxy = '';
-my $useragent = 'update-blocklist/1.1.2' .
-                    ' (https://github.com/gatheall/update-blocklist)';
+our $wait = 5;                          # seconds to wait for iptables (ie, "iptables -w")
+my $useragent = 'update-blocklist (https://github.com/gatheall/update-blocklist)';
 umask 0022;
 
 
