@@ -142,9 +142,9 @@ our @bl_dynamic = ();                   # dynamic blocklist(s).
 our $bl_static = '/var/lib/iptables/blocklist.static';  # static blocklist
 our $ipt_chain = 'BLOCKLIST';           # iptables chain to use
 our $ipt_default_target = 'DROP';       # default target to use for blocking
+our $ipt_extra_args = "-w 5";           # extra arguments to include when calling iptables
 our $optimize = 1;                      # optimize rulesets (0/1)
 our $proxy = '';
-our $wait = 5;                          # seconds to wait for iptables (ie, "iptables -w")
 my $useragent = 'update-blocklist (https://github.com/gatheall/update-blocklist)';
 umask 0022;
 
@@ -453,31 +453,43 @@ if ($optimize) {
 # Update iptables.
 
 # Flush or create the chain as necessary.
+my @ipt_args = split(/\s+/, "-F $ipt_chain");
+push(@ipt_args, split(/\s+/, $ipt_extra_args)) if $ipt_extra_args;
 if ($DEBUG) {
-    warn "debug: would issue the following commands:\n",
-         "debug    iptables -F $ipt_chain || iptables -N $ipt_chain\n";
+    warn "debug: would issue the following commands:\n";
+    warn "debug:   iptables " . join(" ", @ipt_args) .  "\n";
 }
 else {
     # Flush chain.
-    system "iptables", "-F", $ipt_chain;
+    system "iptables", @ipt_args;
     my $rc = $? >> 8;
     # If that fails, try to create it.
     if ($rc) {
-        system "iptables", "-N", $ipt_chain;
-        $rc = $? >> 8;
+        warm "'iptables ", join(" ", @ipt_args), "' failed with rc $rc!\n";
+
+        @ipt_args = split(/\s+/, "-N $ipt_chain");
+        push(@ipt_args, split(/\s+/, $ipt_extra_args)) if $ipt_extra_args;
+        if ($DEBUG) {
+            warn "debug:   iptables " . join(" ", @ipt_args) .  "\n";
+        }
+        else {
+            system "iptables", @ipt_args;
+            $rc = $? >> 8;
+        }
     }
-    croak "'iptables -N $ipt_chain' failed with rc $rc!\n" if ($rc);
+    croak "'iptables ", join(" ", @ipt_args), "' failed with rc $rc!\n" if ($rc);
 }
 
 # Append each rule, sorted by its number.
 foreach my $rule (sort {$a <=> $b} keys %rules) {
+    @ipt_args = split(/\s+/, "-A $ipt_chain " . $rules{$rule});
+    push(@ipt_args, split(/\s+/, $ipt_extra_args)) if $ipt_extra_args;
     if ($DEBUG) {
-        warn "debug:   iptables -A $ipt_chain ", $rules{$rule}, " (rule #$rule)\n";
+        warn "debug:   iptables " . join(" ", @ipt_args) .  " (rule #$rule)\n";
     }
     else {
-        my @parts = split(/\s+/, $rules{$rule});
-        system "iptables", "-A", $ipt_chain, @parts;
+        system "iptables", @ipt_args;
         my $rc = $? >> 8;
-        croak "'iptables -A $ipt_chain ", join(" ", @parts), "' failed with rc $rc!\n" if ($rc);
+        croak "'iptables ", join(" ", @ipt_args), "' failed with rc $rc!\n" if ($rc);
     }
 }
