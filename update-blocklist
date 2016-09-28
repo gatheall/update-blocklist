@@ -282,13 +282,13 @@ unless ($options{'no-gets'} or $options{'static-only'}) {
                 }
             }
             elsif ($method eq 'gpg') {
-                my $uid;
+                my $uid = "";
                 # nb: "--logger-fd 1" redirects stderr to stdout.
                 open(CMD, '-|', 'gpg', '--logger-fd', '1', '--verify', "$scratch.verify", $scratch) or croak "Can't run 'gpg' - $!\n";
                 while (<CMD>) {
                     chomp;
                     warn "debug:   $_\n" if $DEBUG;
-                    $uid = $1 if (/Good signature from \"(.+)\"$/i);
+                    $uid = $1 if (/Good signature from "([^"]+)"/i);
                 }
                 close(CMD);
                 my $rc = $? >> 8;
