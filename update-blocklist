@@ -75,6 +75,7 @@ Finally, it requires the following Perl modules:
     o File::Copy
     o File::Temp
     o Getopt::Long
+    o IPC::Run
     o LWP::Debug
     o LWP::UserAgent
     o Net::IP
@@ -127,6 +128,7 @@ use Carp;
 use File::Copy qw/cp mv/;
 use File::Temp qw/ :POSIX /;
 use Getopt::Long;
+use IPC::Run qw/run/;
 use LWP::UserAgent;
 use Net::IP;
 
@@ -147,6 +149,8 @@ our $optimize = 1;                      # optimize rulesets (0/1)
 our $proxy = '';
 my $useragent = 'update-blocklist (https://github.com/gatheall/update-blocklist)';
 umask 0022;
+
+my(@cmd, $output, $errors);
 
 
 ############################################################################
@@ -171,7 +175,7 @@ GetOptions(
     "debug|d!",
     "help|h|?!",
     "no-gets|n|",
-    "optimize|o|",
+    "optimize|o|!",
     "static-only|s|",
 ) or $options{help} = 1;
 $0 =~ s/^.+\///;
@@ -186,7 +190,8 @@ if ($options{help}) {
         "  -n, --no-gets              Update the blocklist but don't retrieve\n",
         "                               new copies of dynamic blocklists.\n",
         "  -o, --optimize             Optimize the rules by checking for\n",
-        "                               overlap.\n",
+        "                               overlap. NB: you can negate this option;\n",
+        "                               eg, '--no-optimize'.\n",
         "  -s, --static-only          Update the blocklist using only the\n",
         "                               static list.\n";
     exit(9);
@@ -264,41 +269,50 @@ unless ($options{'no-gets'} or $options{'static-only'}) {
 
             warn "debug: verifying contents of blocklist with '$method'.\n" if $DEBUG;
             if ($method eq 'sha256') {
-                system 'sha256sum', '--status', '--check', "$scratch.verify";
-                my $rc = $? >> 8;
+                @cmd = ('sha256sum', '--status', '--check', "$scratch.verify");
+                run \@cmd, \undef, \$output, \$output;
+                my $rc = $?;
                 unlink "$scratch.verify";
                 if ($rc) {
                     warn "*** SHA256 checksum verification for '$label' failed ($rc)! ***\n";
+                    warn "$output\n";
                     next;
                 }
             }
             elsif ($method eq 'md5') {
-                system 'md5sum', '--status', '--check', "$scratch.verify";
-                my $rc = $? >> 8;
+                @cmd = ('md5sum', '--status', '--check', "$scratch.verify");
+                run \@cmd, \undef, \$output, \$output;
+                my $rc = $?;
                 unlink "$scratch.verify";
                 if ($rc) {
                     warn "*** MD5 checksum verification for '$label' failed ($rc)! ***\n";
+                    warn "$output\n";
                     next;
                 }
             }
             elsif ($method eq 'gpg') {
-                my $uid = "";
                 # nb: "--logger-fd 1" redirects stderr to stdout.
-                open(CMD, '-|', 'gpg', '--logger-fd', '1', '--verify', "$scratch.verify", $scratch) or croak "Can't run 'gpg' - $!\n";
-                while (<CMD>) {
-                    chomp;
-                    warn "debug:   $_\n" if $DEBUG;
-                    $uid = $1 if (/Good signature from "([^"]+)"/i);
-                }
-                close(CMD);
-                my $rc = $? >> 8;
-                unlink "$scratch.verify" unless $DEBUG;
+                @cmd = ('gpg', '--logger-fd', '1', '--verify', "$scratch.verify", $scratch);
+                run \@cmd, \undef, \$output, \$output;
+                unlink "$scratch.verify";
+                my $rc = $?;
                 if ($rc) {
                     warn "*** GPG signature verification for '$label' failed ($rc)! ***\n";
+                    warn "$output\n";
                     next;
                 }
-                elsif (!$uid or ($bl->{verify}{uid} and $uid ne $bl->{verify}{uid})) {
-                    warn "*** GPG signature verification for '$label' failed ('$uid' != '", $bl->{verify}{uid}, "')! ***\n";
+
+                my $uid = "";
+                if ($output =~ /Good signature from "([^"]+)"/i) {
+                    my $uid = $1;
+                    if (!$uid or ($bl->{verify}{uid} and $uid ne $bl->{verify}{uid})) {
+                        warn "*** GPG signature verification for '$label' failed ('$uid' != '", $bl->{verify}{uid}, "')! ***\n";
+                        next;
+                    }
+                }
+                else {
+                    warn "*** Failed to find a good signature for '$label' when verifying the GPG signature! ***\n";
+                    warn "$output\n";
                     next;
                 }
             }
@@ -448,48 +462,47 @@ if ($optimize) {
 }
 
 
-
 ############################################################################
 # Update iptables.
 
-# Flush or create the chain as necessary.
-my @ipt_args = split(/\s+/, "-F $ipt_chain");
-push(@ipt_args, split(/\s+/, $ipt_extra_args)) if $ipt_extra_args;
-if ($DEBUG) {
-    warn "debug: would issue the following commands:\n";
-    warn "debug:   iptables " . join(" ", @ipt_args) .  "\n";
+# Create a string with the new rules.
+my $blocklist = "";
+foreach my $rule (sort {$a <=> $b} keys %rules)
+{
+  $blocklist .= "-A $ipt_chain " . $rules{$rule} . "\n";
 }
-else {
-    # Flush chain.
-    system "iptables", @ipt_args;
-    my $rc = $? >> 8;
-    # If that fails, try to create it.
-    if ($rc) {
-        warm "'iptables ", join(" ", @ipt_args), "' failed with rc $rc!\n";
+chomp $blocklist;
 
-        @ipt_args = split(/\s+/, "-N $ipt_chain");
-        push(@ipt_args, split(/\s+/, $ipt_extra_args)) if $ipt_extra_args;
-        if ($DEBUG) {
-            warn "debug:   iptables " . join(" ", @ipt_args) .  "\n";
-        }
-        else {
-            system "iptables", @ipt_args;
-            $rc = $? >> 8;
-        }
-    }
-    croak "'iptables ", join(" ", @ipt_args), "' failed with rc $rc!\n" if ($rc);
+# Grab the existing rules.
+#
+# nb: iptables-save / iptables-restore avoids having to call iptables to add
+#     each rule, which will almost always be slower, especially as the number
+#     of rules in the blocklist grows.
+my $rules = "";
+@cmd = ("iptables-save");
+# nb: iptables-save is run even in debug mode so we can show the new rules.
+warn "debug:   " . join(" ", @cmd) .  "\n" if $DEBUG;
+run \@cmd, \undef, \$rules, \$errors;
+die "Failed to run '" . join(" ", @cmd) . "' ($?)!\n" . $errors . "\n" if ($?);
+
+# Update them with our new rules.
+die "'$ipt_chain' does not exist!\n" unless ($rules =~ /\n:\Q$ipt_chain\E\s*-/);
+die "'$ipt_chain' is not a jump target!\n" unless ($rules =~ / (-j|--jump)\s+\Q$ipt_chain\E/);
+$rules =~ s/(\n-A \Q$ipt_chain\E[^\n]+)+/\n$blocklist/;
+
+# Perform the actual update.
+@cmd = ("iptables-restore");
+if ($DEBUG)
+{
+  warn "debug:   " . join(" ", @cmd) .  "\n";
+  (my $rules_debug = $rules) =~ s/\n/\ndebug:   /g;
+  $rules_debug =~ s/debug: +$//;
+
+  warn "debug: new rules :\n" .
+       "debug:   $rules_debug";
 }
-
-# Append each rule, sorted by its number.
-foreach my $rule (sort {$a <=> $b} keys %rules) {
-    @ipt_args = split(/\s+/, "-A $ipt_chain " . $rules{$rule});
-    push(@ipt_args, split(/\s+/, $ipt_extra_args)) if $ipt_extra_args;
-    if ($DEBUG) {
-        warn "debug:   iptables " . join(" ", @ipt_args) .  " (rule #$rule)\n";
-    }
-    else {
-        system "iptables", @ipt_args;
-        my $rc = $? >> 8;
-        croak "'iptables ", join(" ", @ipt_args), "' failed with rc $rc!\n" if ($rc);
-    }
+else
+{
+  run \@cmd, \$rules, \$errors, \$errors;
+  die "Failed to run '" . join(" ", @cmd) . "' ($?)!\n" . $errors . "\n" if ($?);
 }
