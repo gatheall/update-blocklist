@@ -174,9 +174,9 @@ GetOptions(
     \%options,
     "debug|d!",
     "help|h|?!",
-    "no-gets|n|",
+    "no-gets|n",
     "optimize|o|!",
-    "static-only|s|",
+    "static-only|s",
 ) or $options{help} = 1;
 $0 =~ s/^.+\///;
 if ($options{help}) {
